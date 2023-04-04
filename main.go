@@ -7,7 +7,7 @@ import (
 
 func handleFunc(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/" {
-		fmt.Fprint(w, "<h1>hello, 这是一个goblog项目！</h1>")
+		fmt.Fprint(w, "<h1>hello, 欢迎来到goblog项目！</h1>")
 	} else if r.URL.Path == "/about" {
 		fmt.Fprint(w, "此博客用以记录编程笔记，如有反馈或建议，请联系"+
 			"<a href=\"mailto:summer@example.com\">summer@example.com</a>")
