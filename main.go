@@ -3,7 +3,10 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
+	"text/template"
+	"unicode/utf8"
 
 	"github.com/gorilla/mux"
 )
@@ -25,36 +28,71 @@ func articlesShowHandler(w http.ResponseWriter, r *http.Request) {
 func articlesIndexHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "访问文章列表")
 }
-func articlesCreateHandler(w http.ResponseWriter, r *http.Request) {
-	html := `
-			<!DOCTYPE html>
-			<html lang="en">
-			<head>
-				<title>创建文章 -- 我的技术博客</title>
-			</head>
-			<body>
-				<form action="%s?test=data" method="post">
-					<p><input type="text" name="title"></p>
-					<p><textarea name="body" cols="30" rows="10"></textarea></p>
-					<p><input type="submit" value="提交"></p>
-				</form>
-			</body>
-			</html>
-	`
-	storeURL, _ := router.Get("articles.store").URL()
-	fmt.Fprintf(w, html, storeURL)
-}
-func articlesStoreHandler(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseForm()
-	if err != nil {
-		fmt.Fprint(w, "请提供正确的数据！")
-		return
-	}
-	title := r.PostForm.Get("title")
-	fmt.Fprintf(w, "title的值为：%v <br>", title)
-	fmt.Fprintf(w, "PostForm：%v <br>", r.PostForm)
-	fmt.Fprintf(w, "Form：%v <br>", r.Form)
 
+type ArticlesFormData struct {
+	Title, Body string
+	URL         *url.URL
+	Errors      map[string]string
+}
+
+func articlesCreateHandler(w http.ResponseWriter, r *http.Request) {
+	storeURL, _ := router.Get("articles.store").URL()
+	data := ArticlesFormData{
+		Title:  "",
+		Body:   "",
+		URL:    storeURL,
+		Errors: nil,
+	}
+	tmpl, err := template.ParseFiles("resources/views/articles/create.gohtml")
+	if err != nil {
+		panic(err)
+	}
+	err = tmpl.Execute(w, data)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func articlesStoreHandler(w http.ResponseWriter, r *http.Request) {
+
+	title := r.PostFormValue("title")
+	body := r.PostFormValue("body")
+	errors := make(map[string]string)
+
+	if title == "" {
+		errors["title"] = "标题不能为空"
+	} else if utf8.RuneCountInString(title) < 3 || utf8.RuneCountInString(title) > 40 {
+		errors["title"] = "标题长度需介于3-40"
+	}
+
+	if body == "" {
+		errors["body"] = "内容不能为空"
+	} else if utf8.RuneCountInString(body) < 10 {
+		errors["body"] = "内容不能少于10个字节"
+	}
+
+	if len(errors) == 0 {
+		fmt.Fprint(w, "验证通过！")
+	} else {
+		fmt.Fprintf(w, "验证失败，errors: %v <br>", errors)
+	}
+	storeURL, _ := router.Get("articles.store").URL()
+	data := ArticlesFormData{
+		Title:  title,
+		Body:   body,
+		URL:    storeURL,
+		Errors: errors,
+	}
+
+	//tmpl, err := template.New("create-form").Parse(html)
+	tmpl, err := template.ParseFiles("resources/views/articles/create.gohtml")
+	if err != nil {
+		panic(err)
+	}
+	err = tmpl.Execute(w, data)
+	if err != nil {
+		panic(err)
+	}
 }
 func notFoundHandler(w http.ResponseWriter, r *http.Request) {
 
