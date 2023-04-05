@@ -8,11 +8,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type test struct {
-	Path string
-	Qq   string
-	Ww   string
-}
+var router = mux.NewRouter()
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "<h1>hello, 欢迎来到goblog项目！</h1>")
@@ -29,8 +25,36 @@ func articlesShowHandler(w http.ResponseWriter, r *http.Request) {
 func articlesIndexHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "访问文章列表")
 }
+func articlesCreateHandler(w http.ResponseWriter, r *http.Request) {
+	html := `
+			<!DOCTYPE html>
+			<html lang="en">
+			<head>
+				<title>创建文章 -- 我的技术博客</title>
+			</head>
+			<body>
+				<form action="%s?test=data" method="post">
+					<p><input type="text" name="title"></p>
+					<p><textarea name="body" cols="30" rows="10"></textarea></p>
+					<p><input type="submit" value="提交"></p>
+				</form>
+			</body>
+			</html>
+	`
+	storeURL, _ := router.Get("articles.store").URL()
+	fmt.Fprintf(w, html, storeURL)
+}
 func articlesStoreHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "创建新的文章")
+	err := r.ParseForm()
+	if err != nil {
+		fmt.Fprint(w, "请提供正确的数据！")
+		return
+	}
+	title := r.PostForm.Get("title")
+	fmt.Fprintf(w, "title的值为：%v <br>", title)
+	fmt.Fprintf(w, "PostForm：%v <br>", r.PostForm)
+	fmt.Fprintf(w, "Form：%v <br>", r.Form)
+
 }
 func notFoundHandler(w http.ResponseWriter, r *http.Request) {
 
@@ -50,26 +74,15 @@ func removeTrailingSlash(next http.Handler) http.Handler {
 	})
 }
 func main() {
-	router := mux.NewRouter()
+
 	router.HandleFunc("/", homeHandler).Methods("GET").Name("home")
 	router.HandleFunc("/about", aboutHandler).Methods("GET").Name("about")
 	router.HandleFunc("/articles/{id:[1-9]+}", articlesShowHandler).Methods("GET").Name("articles.show")
 	router.HandleFunc("/articles", articlesIndexHandler).Methods("GET").Name("articles.index")
 	router.HandleFunc("/articles", articlesStoreHandler).Methods("POST").Name("articles.store")
-
+	router.HandleFunc("/articles/create", articlesCreateHandler).Methods("GET").Name("articles.create")
 	router.NotFoundHandler = http.HandlerFunc(notFoundHandler)
 	router.Use(forceHTMLMiddleware)
-	homeURL, _ := router.Get("home").URL()
-	fmt.Println("homeURL: ", homeURL.Path)
-	articleURL, _ := router.Get("articles.show").URL("id", "4")
-	fmt.Println("articleURL: ", articleURL.Path)
-	var path, qq, ww string
-	path = "123123"
-	test := test{
-		Path: path,
-		Qq:   qq,
-		Ww:   ww,
-	}
-	fmt.Println("test: ", test)
+
 	http.ListenAndServe("127.0.0.1:3000", removeTrailingSlash(router))
 }
