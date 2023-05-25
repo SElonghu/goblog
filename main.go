@@ -1,17 +1,21 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
 	"text/template"
 	"unicode/utf8"
 
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/mysql"
+
 	"github.com/gorilla/mux"
 )
 
+var db *sql.DB
 var router = mux.NewRouter()
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
@@ -112,8 +116,39 @@ func removeTrailingSlash(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
-func main() {
+func initDB() {
+	var err error
+	config := mysql.Config{
+		User:                 "root",
+		Passwd:               "Kylin*2020",
+		Net:                  "tcp",
+		Addr:                 "127.0.0.1",
+		DBName:               "goblog",
+		AllowNativePasswords: true,
+	}
+	db, err = sql.Open("mysql", config.FormatDSN())
+	checkError(err)
+	err = db.Ping()
+	checkError(err)
 
+}
+func checkError(err error) {
+	if err != nil {
+		log.Fatal()
+	}
+}
+func createTables() {
+	createArticlesSQL := `CREATE TABLE IF NOT EXISTS articles(
+		id bigint(20) PRIMARY KEY	AUTO_INCREMENT NOT NULL,
+		title varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+		body longtext COLLATE utf8mb4_unicode_ci
+	);`
+	_, err := db.Exec(createArticlesSQL)
+	checkError(err)
+}
+func main() {
+	initDB()
+	createTables()
 	router.HandleFunc("/", homeHandler).Methods("GET").Name("home")
 	router.HandleFunc("/about", aboutHandler).Methods("GET").Name("about")
 	router.HandleFunc("/articles/{id:[1-9]+}", articlesShowHandler).Methods("GET").Name("articles.show")
