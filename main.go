@@ -19,6 +19,11 @@ import (
 var db *sql.DB
 var router = mux.NewRouter()
 
+type Article struct {
+	ID          int64
+	Title, Body string
+}
+
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "<h1>hello, 欢迎来到goblog项目！</h1>")
 }
@@ -29,7 +34,26 @@ func aboutHandler(w http.ResponseWriter, r *http.Request) {
 func articlesShowHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	fmt.Fprint(w, "文章id："+id)
+	//fmt.Fprint(w, "文章id："+id)
+	article := Article{}
+	query := `SELECT * FROM articles WHERE id = ?`
+	err := db.QueryRow(query, id).Scan(&article.ID, &article.Title, &article.Body)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprint(w, "404 文章未找到")
+		} else {
+			checkError(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, "500 服务器内部错误")
+		}
+	} else {
+		//fmt.Fprint(w, "读取成功，标题为："+article.Title)
+		templ, err := template.ParseFiles("./resources/views/articles/show.gohtml")
+		checkError(err)
+		err = templ.Execute(w, article)
+		checkError(err)
+	}
 }
 func articlesIndexHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "访问文章列表")
