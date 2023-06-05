@@ -54,6 +54,22 @@ func articlesShowHandler(w http.ResponseWriter, r *http.Request) {
 }
 func articlesIndexHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "访问文章列表")
+	rows, err := db.Query("SELECT * from articles;")
+	checkError(err)
+	defer rows.Close()
+	var articles []Article
+	for rows.Next() {
+		var article Article
+		err = rows.Scan(&article.ID, &article.Title, &article.Body)
+		checkError(err)
+		articles = append(articles, article)
+	}
+	err = rows.Err()
+	checkError(err)
+	templ, err := template.ParseFiles("resources/views/articles/index.gohtml")
+	checkError(err)
+	err = templ.Execute(w, articles)
+	checkError(err)
 }
 
 type ArticlesFormData struct {
@@ -267,10 +283,10 @@ func initDB() {
 	var err error
 	config := mysql.Config{
 		User:                 "root",
-		Passwd:               "Kylin*2020",
+		Passwd:               "123123",
 		Net:                  "tcp",
-		Addr:                 "127.0.0.1",
-		DBName:               "goblog",
+		Addr:                 "127.0.0.1:3306",
+		DBName:               "blog",
 		AllowNativePasswords: true,
 	}
 	db, err = sql.Open("mysql", config.FormatDSN())
@@ -285,6 +301,7 @@ func checkError(err error) {
 	}
 }
 func createTables() {
+	fmt.Println("创建表articles")
 	createArticlesSQL := `CREATE TABLE IF NOT EXISTS articles(
 		id bigint(20) PRIMARY KEY	AUTO_INCREMENT NOT NULL,
 		title varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -296,7 +313,7 @@ func createTables() {
 func main() {
 	initDB()
 	createTables()
-	router.HandleFunc("/", homeHandler).Methods("GET").Name("home")
+	router.HandleFunc("/home", homeHandler).Methods("GET").Name("home")
 	router.HandleFunc("/about", aboutHandler).Methods("GET").Name("about")
 	router.HandleFunc("/articles/{id:[1-9]+}", articlesShowHandler).Methods("GET").Name("articles.show")
 	router.HandleFunc("/articles", articlesIndexHandler).Methods("GET").Name("articles.index")
@@ -307,6 +324,5 @@ func main() {
 
 	router.NotFoundHandler = http.HandlerFunc(notFoundHandler)
 	router.Use(forceHTMLMiddleware)
-
 	http.ListenAndServe("127.0.0.1:3000", removeTrailingSlash(router))
 }
