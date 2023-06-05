@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"text/template"
 	"unicode/utf8"
@@ -78,6 +79,15 @@ func articlesStoreHandler(w http.ResponseWriter, r *http.Request) {
 
 	if len(errors) == 0 {
 		fmt.Fprint(w, "验证通过！")
+		lastInsertID, err := saveArticleToDB(title, body)
+		if lastInsertID > 0 {
+			fmt.Fprint(w, "插入成功，ID为"+strconv.FormatInt(lastInsertID, 10))
+		} else {
+			checkError(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, "500 服务器内部错误")
+		}
+
 	} else {
 		fmt.Fprintf(w, "验证失败，errors: %v <br>", errors)
 	}
@@ -98,6 +108,28 @@ func articlesStoreHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
+}
+func saveArticleToDB(title, body string) (int64, error) {
+	var (
+		err    error
+		id     int64
+		result sql.Result
+		stmt   *sql.Stmt
+	)
+	stmt, err = db.Prepare("INSERT INTO articles (title, body) VALUES(?, ?)")
+	if err != nil {
+		return 0, err
+	}
+	defer stmt.Close()
+	result, err = stmt.Exec(title, body)
+	if err != nil {
+		return 0, err
+	}
+	if id, err = result.LastInsertId(); id > 0 {
+		return id, nil
+	}
+	return 0, err
+
 }
 func notFoundHandler(w http.ResponseWriter, r *http.Request) {
 
