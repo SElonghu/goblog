@@ -52,8 +52,9 @@ func articlesShowHandler(w http.ResponseWriter, r *http.Request) {
 		checkError(err)
 	}
 }
+
 func articlesIndexHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "访问文章列表")
+	///fmt.Fprint(w, "访问文章列表")
 	rows, err := db.Query("SELECT * from articles;")
 	checkError(err)
 	defer rows.Close()
@@ -70,6 +71,14 @@ func articlesIndexHandler(w http.ResponseWriter, r *http.Request) {
 	checkError(err)
 	err = templ.Execute(w, articles)
 	checkError(err)
+}
+func (a Article) Link() string {
+	showURL, err := router.Get("articles.show").URL("id", strconv.FormatInt(a.ID, 10))
+	if err != nil {
+		checkError(err)
+		return ""
+	}
+	return showURL.String()
 }
 
 type ArticlesFormData struct {
@@ -283,10 +292,10 @@ func initDB() {
 	var err error
 	config := mysql.Config{
 		User:                 "root",
-		Passwd:               "123123",
+		Passwd:               "Kylin*2020",
 		Net:                  "tcp",
-		Addr:                 "127.0.0.1:3306",
-		DBName:               "blog",
+		Addr:                 "127.0.0.1",
+		DBName:               "goblog",
 		AllowNativePasswords: true,
 	}
 	db, err = sql.Open("mysql", config.FormatDSN())
@@ -301,7 +310,6 @@ func checkError(err error) {
 	}
 }
 func createTables() {
-	fmt.Println("创建表articles")
 	createArticlesSQL := `CREATE TABLE IF NOT EXISTS articles(
 		id bigint(20) PRIMARY KEY	AUTO_INCREMENT NOT NULL,
 		title varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
